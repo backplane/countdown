@@ -16,12 +16,12 @@
         padding: 1em;
         text-align: center;
       }
-      .date-label {
-        margin: 0 auto;
-        padding: 0;
-      }
       #countdown {
         font-size: 200%;
+      }
+      #description {
+        margin: 0 auto;
+        padding: 0;
       }
     </style>
   </head>
@@ -34,12 +34,20 @@
     </noscript>
     <div id="countdown">
       Set a "date" hash param in the URL. (For example: "#date=2022") This will
-      be <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse">parsed by the JavaScript "Date" constructor</a> and we will display a
-      countdown to that date.
+      be
+      <a
+        href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse"
+        >parsed by the JavaScript "Date" constructor</a
+      >
+      and we will display a countdown to that date.
     </div>
-    <div class="date-label">until</div>
-    <div id="date"></div>
+    <div id="description"></div>
     <script type="text/javascript">
+      let timeoutID;
+      let countdownElement;
+      let descriptionElement;
+      let durationDetail = 4;
+
       function fmt_duration(ms, detail) {
         // Return a string containing the number of years, days, hours,
         // minutes, and seconds in the given numeric seconds argument.
@@ -63,8 +71,9 @@
         //
         const labels = ["years", "days", "hours", "minutes", "seconds"];
         const increments = [31557600000, 86400000, 3600000, 60000, 1000];
+
         var result = "";
-        detail = detail === undefined ? increments.length : detail;
+        detail ??= increments.length;
         detail = Math.min(detail, increments.length);
 
         for (var i = 0; i < detail; i += 1) {
@@ -78,43 +87,56 @@
               label = label.slice(0, -1);
             }
             ms -= quantity * increment;
-            result = result + " " + quantity + " " + label + ",";
+            result = `${result} ${quantity} ${label},`;
           }
         }
 
         result = result.slice(1, -1);
-        if (result === "") {
-          result = "less than one " + labels[detail - 1].slice(0, -1);
+        if (!result) {
+          result = `less than one ${labels[detail - 1].slice(0, -1)}`;
         }
 
         return result;
       }
 
       function updateCountdown(targetDate) {
-        let now = new Date();
-        var duration = targetDate - now;
-        document.getElementById("countdown").innerHTML = fmt_duration(duration);
-        setTimeout(updateCountdown, 1000, targetDate);
+        var duration = targetDate - new Date();
+
+        if (timeoutID !== null) clearTimeout(timeoutID); // clear any existing timer
+        if (duration < 1) {
+          countdownElement.innerHTML = `${targetDate} reached`;
+          descriptionElement.innerHTML = "";
+          return;
+        }
+        countdownElement.innerHTML = fmt_duration(duration, durationDetail);
+        timeoutID = setTimeout(updateCountdown, 1000, targetDate);
       }
 
       function main() {
-        let hashParams = window.location.hash
-          .substr(1)
-          .split("&")
-          .reduce((res, item) => {
-            var parts = item.split("=");
-            res[parts[0]] = parts[1];
-            return res;
-          }, {});
+        countdownElement = document.getElementById("countdown");
+        descriptionElement = document.getElementById("description");
+        let hashParams = new Map(
+          window.location.hash
+            .substr(1)
+            .split("&")
+            .map((item) => item.split("=", 2))
+        );
 
-        if (Object.prototype.hasOwnProperty.call(hashParams, "date")) {
-          let targetDate = new Date(hashParams["date"]);
-          document.getElementById("date").innerHTML = targetDate;
+        if (hashParams.has("detail")) {
+          durationDetail = parseInt(hashParams.get("detail"), 10);
+        }
+
+        if (hashParams.has("date")) {
+          let targetDate = new Date(hashParams.get("date"));
+          descriptionElement.innerHTML = `until ${targetDate}`;
           updateCountdown(targetDate);
+        } else {
+          descriptionElement.innerHTML = "";
         }
       }
 
       document.body.onload = main;
+      window.onhashchange = main;
     </script>
   </body>
 </html>
